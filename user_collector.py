@@ -36,11 +36,48 @@ def find_coffee_hobbyist_users(num_users: int, api: PushshiftAPI) -> List[str]:
     return list(usernames)
 
 
-if __name__ == "__main__":
-    hobbyist_users = find_coffee_hobbyist_users(1000, PushshiftAPI())
-    training_users = hobbyist_users[:500]
-    testing_users = hobbyist_users[500:900]
-    vault_users = hobbyist_users[900:]
-    store_raw_data(training_users, "data/training_users.txt")
-    store_raw_data(testing_users, "data/testing_users.txt")
-    store_raw_data(vault_users, "data/vault_users.txt")
+def confirm_user_dislikes_coffee(comment_body: str) -> bool:
+    """Confirm that the user who wrote the given comment dislikes coffee
+
+    Args:
+        comment_body (str): Body of comment that may express dislike of coffee
+
+    Returns:
+        bool: True if the user dislikes coffee
+    """
+    print(comment_body)
+    user_confirmation = input(
+        "\n Does the above comment indicate dislike? (y/n): "
+    ).lower()
+    if user_confirmation not in {"y", "n"}:
+        print("Please enter either 'y' or 'n'")
+        return confirm_user_dislikes_coffee(comment_body)
+    return user_confirmation == "y"
+
+
+def find_coffee_dislikers(num_users: int, api: PushshiftAPI) -> List[str]:
+    """Find users who dislike coffee in an interactive manner
+
+    Args:
+        num_users (int): Number of users to find
+        api (PushshiftAPI): Instance of PushshiftAPI
+
+    Returns:
+        List[str]: List of users that do not like coffee
+    """
+    usernames: Set[str] = set()
+    comment_gen = api.search_comments(
+        q='"I don\'t like coffee"', filter=["author", "body"]
+    )
+    for comment in comment_gen:
+        if comment.author == "[deleted]":
+            continue
+        users_remaining = num_users - len(usernames)
+        if users_remaining == 0:
+            break
+        print(f"\nUsers remaining: {users_remaining}\n")
+        if comment.author in usernames or len(comment.body) > 200:
+            continue
+        if confirm_user_dislikes_coffee(comment.body):
+            usernames.add(comment.author)
+    return list(usernames)
